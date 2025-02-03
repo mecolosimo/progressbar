@@ -3,6 +3,7 @@
 // that can be found in the LICENSE file.
 module progressbar
 
+import math
 import term
 import time
 import strconv
@@ -25,17 +26,17 @@ const whitespace_length = 2
 // The amount of width taken up by the border of the bar component.
 const bar_border_width = 2
 
-struct Format {
+pub struct Format {
 	begin 	string
 	end		string
 	fill	string
 }
 
-struct Progessbar {
-
-	max 	u64  		@[xdoc: 'Maximum value']
-
+pub struct Progessbar {
 	start	time.Time	@[xdoc: 'Time progressbar was started']
+
+pub:
+	max 	u64         @[xdoc: 'Maximum value']
 
 mut:
 	value	u64			@[xdoc: 'Current value']
@@ -89,7 +90,6 @@ fn progressbar_max(x int, y int) int {
 
 @[inline]
 fn progressbar_bar_width(screen_width int, label_length int) int {
-
 	return progressbar_max(minimum_bar_width, screen_width - label_length - eta_format_length - whitespace_length)
 }
 
@@ -111,7 +111,7 @@ fn (bar &Progessbar) progressbar_draw() {
 	bar_piece_current		:= if progressbar_completed {
 									f64(bar_piece_count)
 								} else {
-									bar_piece_count * ( bar.value / f64(bar.max))
+									math.ceil(bar_piece_count * ( bar.value / f64(bar.max)))
 								}
 
 	eta := 	if progressbar_completed {
@@ -133,8 +133,8 @@ fn (bar &Progessbar) progressbar_draw() {
 	// Draw the progressbar
 	eprint(bar.format.begin)
 	progressbar_write_char(bar.format.fill, bar_piece_current)
-	progressbar_write_char(' ', bar_piece_count - bar_piece_current - 1)
-	eprint(bar.format.end,)
+	progressbar_write_char(' ', bar_piece_count - bar_piece_current)
+	eprint(bar.format.end)
 
 	// Draw the ETA
 	eprint(' ')
@@ -149,6 +149,7 @@ fn progressbar_label_width(screen_width int, label_length int, bar_width int) in
 	eta_width := eta_format_length
 
 	// If the progressbar is too wide to fit on the screen, we must sacrifice the label.
+	// Two whitespaces in the bar, one if label_label_width = 0
 	if label_length + bar_width + eta_width + 2 > screen_width {
 		return progressbar_max(0, screen_width - bar_width - eta_width - whitespace_length)
 	} else {
@@ -160,16 +161,16 @@ fn progressbar_label_width(screen_width int, label_length int, bar_width int) in
 fn progressbar_write_char(ch string, times f64) {
 	mut i := 0
 	for {
-		eprint(ch)
 		i++
 		if i >= times {
 			break
 		}
+		eprint(ch)
 	}
 }
 
 // progessbar_update Increment an existing progressbar by `value` steps.
-fn (mut bar Progessbar) progessbar_update(value u64) {
+pub fn (mut bar Progessbar) progessbar_update(value u64) {
 	bar.value = value
 	bar.progressbar_draw()
 }
@@ -177,7 +178,7 @@ fn (mut bar Progessbar) progessbar_update(value u64) {
 // progressbar_new_with_format Create a new progress bar with the specified label, max number of steps, and format string.
 // Note that `format` must be exactly three characters long, e.g. "<->" to render a progress
 // bar like "<---------->". Returns NULL if there isn't enough memory to allocate a progressbar
-fn progressbar_new_with_format(label string, max u64, format string) &Progessbar {
+pub fn progressbar_new_with_format(label string, max u64, format string) &Progessbar {
 	assert 3 == format.len, "format must be 3 characters in length"
 	
 	f := Format {
@@ -207,13 +208,14 @@ pub fn progressbar_new(label string, max u64) !&Progessbar {
 
 // progressbar_update Set the current status on the given progressbar.
 pub fn (mut bar Progessbar) progressbar_update(value u64) {
-	bar.value++
+	bar.value = value
 	bar.progressbar_draw()
 }
 
 // progressbar_inc Increment the given progressbar. Don't increment past the initialized # of steps, though.
 pub fn (mut bar Progessbar) progressbar_inc() {
-	bar.progressbar_update(bar.value + 1)
+	bar.value++
+	bar.progressbar_draw()
 }
 
 // progressbar_update_label Set the label of the progressbar. Note that no rendering is done. The label is simply set so that the next
