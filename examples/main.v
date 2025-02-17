@@ -7,6 +7,7 @@ import time
 import progressbar as prog
 
 fn main() {
+	println("Testing progressbar..")
 	mut p := prog.progressbar_new("Testing", 100) or { panic('Something went wrong with progressbar_new')}
 	for i := 0; i < 100; i++ {
 		// Simulating doing some stuff
@@ -14,4 +15,5 @@ fn main() {
 		p.progressbar_inc()
 	}
 	p.progressbar_finish()
+	println("Finished")
 }
