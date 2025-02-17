@@ -3,5 +3,7 @@ Module {
 	description: 'For displaying attractive progress bars on the command line.'
 	version: '1.0.0'
 	license: 'BSD-3-Clause'
-	dependencies: []
+	dependencies: [
+		https://github.com/mecolosimo/v-atomics.git
+	]
 }
