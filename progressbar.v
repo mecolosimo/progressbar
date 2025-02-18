@@ -201,7 +201,7 @@ fn progressbar_new_with_format(label string, max u64, format string) &Progessbar
 
 // progressbar_new Configures a progressbar with the provided arguments. Note that the user is responsible for disposing
 //		      of the progressbar via progressbar_finish when finished with the object.
-pub fn progressbar_new(label string, max u64) !&Progessbar {
+pub fn progressbar_new(label string, max u64) &Progessbar {
 	return progressbar_new_with_format(label, max, "|=|")
 }
 

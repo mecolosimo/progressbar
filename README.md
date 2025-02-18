@@ -28,5 +28,5 @@ fn main() {
 Eventually, I will put this in [vpm](https://vpm.vlang.io/) but for now:
 
 ```bash
-v install https://github.com/mecolosimo/progressbar
+v install https://github.com/mecolosimo/progressbar.git
 ```
