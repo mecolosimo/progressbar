@@ -77,18 +77,19 @@ fn (bar &Progessbar) progressbar_remaining_seconds() u64 {
   if value > 0 && offset > 0 {
     return u64((offset / f64(value)) * (bar.max - value))
   } else {
-    return 0
+    return 8639999 // just under 100 days
   }
 }
 
 @[inline]
 fn progressbar_calc_time_components(seconds u64) Progressbar_time_components {
-	if seconds > 0xffffffff {
+	// less than 100 days
+	if seconds >= 8640000 {
 		panic("seconds too large")
 	}
 	days		:= seconds / 86400
 	hours 		:= (seconds - days * 86400 ) / 3600
-  	mut secs	:= seconds - hours * 3600
+  	mut secs	:= seconds - (hours * 3600) - (days * 86400) 
   	minutes 	:= secs / 60
  	secs 		-= minutes * 60
 
@@ -140,7 +141,7 @@ fn progressbar_draw(mut bar Progessbar) {
 				} else {
 					progressbar_calc_time_components(bar.progressbar_remaining_seconds())
 				}
-		
+
 		if label_width == 0 {
 			// The label would usually have a trailing space, but in the case that we don't print
 			// a label, the bar can use that space instead.
