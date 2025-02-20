@@ -84,7 +84,7 @@ fn (bar &Progessbar) progressbar_remaining_seconds() u64 {
 @[inline]
 fn progressbar_calc_time_components(seconds u64) Progressbar_time_components {
 	if seconds > 0xffffffff {
-		panic("seconds to large")
+		panic("seconds too large")
 	}
 	days		:= seconds / 86400
 	hours 		:= (seconds - days * 86400 ) / 3600
@@ -169,7 +169,7 @@ fn progressbar_draw(mut bar Progessbar) {
 			eprint("\n")
 			break
 		} else {
-			time.sleep(int(f64(bar.update_time * 1000) / 2.0) * time.millisecond)
+			time.sleep(int(f64(bar.update_time * 1000) / 9.0) * time.millisecond)
 		}
 	}
 }
