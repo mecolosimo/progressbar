@@ -16,10 +16,10 @@ const default_screen_width = 80
 const minimum_bar_width = 10
 
 // The format in which the estimated remaining time will be reported
-const eta_format = "ETA:%02dh%02dm%02ds"
+const eta_format = "ETA:%02dd%02dh%02dm%02ds"
 
 // The maximum number of characters that the ETA_FORMAT should yield
-const eta_format_length = 14
+const eta_format_length = 17
 
 // The amount of width taken up by the border of the bar component.
 const whitespace_length = 2
@@ -35,9 +35,9 @@ struct Format {
 
 pub struct Progessbar {
 
-	start			time.Time		@[xdoc: 'Time progressbar was started']
+	start			time.Time			@[xdoc: 'Time progressbar was started']
 
-	update_time		u8				@[xdoc: 'Time (secs) to sleep before updating']
+	update_time		u8					@[xdoc: 'Time (secs) to sleep before updating']
 
 mut:
 	max 			u64  				@[xdoc: 'Maximum value']
@@ -57,9 +57,11 @@ mut:
 
 struct Progressbar_time_components {
 mut:
-	hours 	u64
-	minutes	u64
-	seconds u64
+	// see https://github.com/vlang/v/issues/23767
+	days	int
+	hours 	int
+	minutes int
+	seconds int
 }
 
 // difftime Returns diffence in time
@@ -81,15 +83,20 @@ fn (bar &Progessbar) progressbar_remaining_seconds() u64 {
 
 @[inline]
 fn progressbar_calc_time_components(seconds u64) Progressbar_time_components {
-	hours 		:= seconds / 3600
+	if seconds > 0xffffffff {
+		panic("seconds to large")
+	}
+	days		:= seconds / 86400
+	hours 		:= (seconds - days * 86400 ) / 3600
   	mut secs	:= seconds - hours * 3600
   	minutes 	:= secs / 60
  	secs 		-= minutes * 60
 
 	return Progressbar_time_components {
-		hours: 		hours
-		minutes:	minutes		
-		seconds:	seconds
+		days:		int(days)
+		hours: 		int(hours)
+		minutes:	int(minutes)	
+		seconds:	int(secs)
 	}
 }
 
@@ -152,7 +159,7 @@ fn progressbar_draw(mut bar Progessbar) {
 
 		// Draw the ETA
 		eprint(' ')
-		eprint( unsafe { strconv.v_sprintf(eta_format, eta.hours, eta.minutes, eta.seconds) } )
+		eprint( unsafe { strconv.v_sprintf(eta_format, eta.days, eta.hours, eta.minutes, eta.seconds) } )
 		eprint('\r')	
 
 		flush_stderr()
