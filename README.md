@@ -4,7 +4,7 @@ Progressbar in V based on [progressbar](https://github.com/doches/progressbar) b
 ## What is this thing?
 
 progressbar is for displaying attractive progress bars on the command line. It's heavily influenced by the ruby ProgressBar
-gem, whose api and behaviour it imitates. Really want something like [tqdm](https://github.com/tqdm/tqdm). But this was simpler. 
+gem, whose api and behaviour it imitates. Really want something like [tqdm](https://github.com/tqdm/tqdm). But this was simpler. It waits until 0.5% is done to try and calculate the remaining time. It then might quit if over 99 days, 59 min, 59 secs.
 
 Example usage:
 

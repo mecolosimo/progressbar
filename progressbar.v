@@ -75,7 +75,7 @@ fn (bar &Progessbar) progressbar_remaining_seconds() u64 {
   offset := difftime(time.now(), bar.start)
   value :=  bar.value.get()
   // let it "warm-up" some before figuring time
-  if value / bar.max > 0.01 && offset > 0 {
+  if value / bar.max > 0.005 && offset > 0 {
     return u64((offset / f64(value)) * (bar.max - value))
   } else {
     return 8639999 // just under 100 days
