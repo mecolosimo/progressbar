@@ -74,7 +74,8 @@ fn difftime(a time.Time, b time.Time) f64 {
 fn (bar &Progessbar) progressbar_remaining_seconds() u64 {
   offset := difftime(time.now(), bar.start)
   value :=  bar.value.get()
-  if value > 0 && offset > 0 {
+  // let it "warm-up" some before figuring time
+  if value / bar.max > 0.01 && offset > 0 {
     return u64((offset / f64(value)) * (bar.max - value))
   } else {
     return 8639999 // just under 100 days
@@ -85,7 +86,7 @@ fn (bar &Progessbar) progressbar_remaining_seconds() u64 {
 fn progressbar_calc_time_components(seconds u64) Progressbar_time_components {
 	// less than 100 days
 	if seconds >= 8640000 {
-		panic("seconds too large")
+		panic("${seconds} seconds too large by ${seconds - 8640000}!")
 	}
 	days		:= seconds / 86400
 	hours 		:= (seconds - days * 86400 ) / 3600
@@ -165,7 +166,7 @@ fn progressbar_draw(mut bar Progessbar) {
 
 		flush_stderr()
 
-		if progressbar_completed || d{ 
+		if progressbar_completed || d { 
 			// Print a newline, so that future outputs to stderr look prettier
 			eprint("\n")
 			break
