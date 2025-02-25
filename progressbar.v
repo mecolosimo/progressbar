@@ -3,9 +3,10 @@
 // that can be found in the LICENSE file.
 module progressbar
 
+import math
+import strconv
 import term
 import time
-import strconv
 
 import concurrent.atomics 
 
@@ -19,7 +20,7 @@ const minimum_bar_width = 10
 const eta_format = "ETA:%02dd%02dh%02dm%02ds"
 
 // The maximum number of characters that the ETA_FORMAT should yield
-const eta_format_length = 17
+const eta_format_length = 16
 
 // The amount of width taken up by the border of the bar component.
 const whitespace_length = 2
@@ -132,9 +133,9 @@ fn progressbar_draw(mut bar Progessbar) {
 		progressbar_completed	:= bar.value.get() >= bar.max
 		bar_piece_count			:= bar_width - bar_border_width
 		bar_piece_current		:= if progressbar_completed {
-										f64(bar_piece_count)
+										math.ceil(f64(bar_piece_count))
 									} else {
-										bar_piece_count * ( bar.value.get() / f64(bar.max))
+										math.ceil(bar_piece_count * ( bar.value.get() / f64(bar.max)))
 									}
 
 		eta := 	if progressbar_completed {
@@ -155,8 +156,8 @@ fn progressbar_draw(mut bar Progessbar) {
 
 		// Draw the progressbar
 		eprint(bar.format.begin)
-		progressbar_write_char(bar.format.fill, bar_piece_current)
-		progressbar_write_char(' ', bar_piece_count - bar_piece_current - 1)
+		progressbar_write_char(bar.format.fill, int(bar_piece_current))
+		progressbar_write_char(' ', int(bar_piece_count - bar_piece_current))
 		eprint(bar.format.end,)
 
 		// Draw the ETA
@@ -189,14 +190,9 @@ fn progressbar_label_width(screen_width int, label_length int, bar_width int) in
 }
 
 @[inline]
-fn progressbar_write_char(ch string, times f64) {
-	mut i := 0
-	for {
+fn progressbar_write_char(ch string, times int) {
+	for _ in 0 .. times {
 		eprint(ch)
-		i++
-		if i >= times {
-			break
-		}
 	}
 }
 
@@ -281,6 +277,7 @@ pub fn (mut bar Progessbar) progessbar_value() u64 {
 // partway through.
 pub fn (mut bar Progessbar) progressbar_finish() {
 	// Make sure we fill the progressbar so things look complete.
+	bar.value.set(bar.max)
 	progressbar_draw(mut bar)
 	bar.done.set(true)
 }
