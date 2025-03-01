@@ -5,6 +5,7 @@ module progressbar
 
 import math
 import strconv
+import strings
 import term
 import time
 
@@ -23,7 +24,7 @@ const eta_format = "ETA:%02dd%02dh%02dm%02ds"
 const eta_format_length = 16
 
 // The amount of width taken up by the border of the bar component.
-const whitespace_length = 2
+const whitespace_length = 4
 
 // The amount of width taken up by the border of the bar component.
 const bar_border_width = 2
@@ -44,8 +45,6 @@ mut:
 	max 			u64  				@[xdoc: 'Maximum value']
 
 	value			atomics.AtomicU64	@[xdoc: 'Current value']	
-
-	label			string				@[xdoc: 'Label']
 
 	format 			Format				@[xdoc: 'Characters for the beginning, filling and end of the progressbar. E.g. |###    | has |#|']
 
@@ -76,7 +75,7 @@ fn (bar &Progessbar) progressbar_remaining_seconds() u64 {
   offset := difftime(time.now(), bar.start)
   value :=  bar.value.get()
   // let it "warm-up" some before figuring time
-  if value / bar.max > 0.005 && offset > 0 {
+  if value / f64(bar.max) > 0.001 && offset > 0 {
     return u64((offset / f64(value)) * (bar.max - value))
   } else {
     return 8639999 // just under 100 days
@@ -109,15 +108,16 @@ fn progressbar_max(x int, y int) int {
 }
 
 @[inline]
-fn progressbar_bar_width(screen_width int, label_length int) int {
-
-	return progressbar_max(minimum_bar_width, screen_width - label_length - eta_format_length - whitespace_length)
-}
-
-@[inline]
 fn get_screen_width() int {
 	columns, _ := term.get_terminal_size()
 	return columns
+}
+
+@[inline]
+fn right_justified(s string, n int) string {
+	mut spaces := strings.repeat_string(" ", n)
+	spaces += s
+	return spaces
 }
 
 @[inline]
@@ -126,16 +126,25 @@ fn progressbar_draw(mut bar Progessbar) {
 		d := bar.done.get()
 
 		screen_width 	:= get_screen_width()
-		label_length 	:= bar.label.len
-		mut bar_width	:= progressbar_bar_width(screen_width, label_length)
-		label_width		:= progressbar_label_width(screen_width, label_length, bar_width)
-
-		progressbar_completed	:= bar.value.get() >= bar.max
+		current_value	:= bar.value.get()
+		progress_value	:= u32(( current_value / f64(bar.max)) * 100)
+		label 			:= unsafe { strconv.v_sprintf("%02d%%", progress_value) }
+		max_value		:= "${bar.max}"
+		current_max_tmp	:= "${current_value}/${max_value}"
+		current_max		:= if current_max_tmp.len <= 2 * max_value.len + 1 {
+							right_justified(current_max_tmp, current_max_tmp.len - max_value.len)
+						} else {
+							panic("value '${current_value}' is bigger than max!")
+						}
+		label_length 	:= label.len + (2 * current_max.len) + 1
+		mut bar_width	:= progressbar_max(minimum_bar_width, screen_width - label_length - eta_format_length - whitespace_length)
+		
+		progressbar_completed	:= current_value >= bar.max
 		bar_piece_count			:= bar_width - bar_border_width
 		bar_piece_current		:= if progressbar_completed {
 										math.ceil(f64(bar_piece_count))
 									} else {
-										math.ceil(bar_piece_count * ( bar.value.get() / f64(bar.max)))
+										math.ceil(bar_piece_count * ( current_value / f64(bar.max)))
 									}
 
 		eta := 	if progressbar_completed {
@@ -144,15 +153,10 @@ fn progressbar_draw(mut bar Progessbar) {
 					progressbar_calc_time_components(bar.progressbar_remaining_seconds())
 				}
 
-		if label_width == 0 {
-			// The label would usually have a trailing space, but in the case that we don't print
-			// a label, the bar can use that space instead.
-			bar_width += 1
-		} else {
-			// Draw the label
-			eprint(bar.label);
-			eprint(' ');
-		}
+		// Draw the label (percent done)
+		eprint(label);
+		eprint(' ');
+		
 
 		// Draw the progressbar
 		eprint(bar.format.begin)
@@ -160,6 +164,10 @@ fn progressbar_draw(mut bar Progessbar) {
 		progressbar_write_char(' ', int(bar_piece_count - bar_piece_current))
 		eprint(bar.format.end,)
 
+		// Draw the amount done
+		eprint(' ')
+		eprint(current_max)
+	
 		// Draw the ETA
 		eprint(' ')
 		eprint( unsafe { strconv.v_sprintf(eta_format, eta.days, eta.hours, eta.minutes, eta.seconds) } )
@@ -201,10 +209,10 @@ fn (mut bar Progessbar) progessbar_update(value u64) {
 	bar.value.set(value)
 }
 
-// progressbar_new_with_format Create a new progress bar with the specified label, max number of steps, and format string.
+// progressbar_new_with_format Create a new progress bar with the specified max number of steps, and format string.
 // Note that `format` must be exactly three characters long, e.g. "<->" to render a progress
 // bar like "<---------->". Returns NULL if there isn't enough memory to allocate a progressbar
-fn progressbar_new_with_format(label string, max u64, format string) &Progessbar {
+fn progressbar_new_with_format(max u64, format string) &Progessbar {
 	assert 3 == format.len, "format must be 3 characters in length"
 	
 	f := Format {
@@ -218,13 +226,11 @@ fn progressbar_new_with_format(label string, max u64, format string) &Progessbar
 		value:			atomics.new_atomic_u64(0)
 		start:			time.now()
 		format: 		f
-		label: 			label
 
 		done: 			atomics.new_atomic_bool(false)
 		update_time:	1
 	}
 
-	new.progressbar_update_label(label)
 	new.thread_bar = go progressbar_draw(mut new)
 
 	return new
@@ -232,8 +238,8 @@ fn progressbar_new_with_format(label string, max u64, format string) &Progessbar
 
 // progressbar_new Configures a progressbar with the provided arguments. Note that the user is responsible for disposing
 //		      of the progressbar via progressbar_finish when finished with the object.
-pub fn progressbar_new(label string, max u64) &Progessbar {
-	return progressbar_new_with_format(label, max, "|=|")
+pub fn progressbar_new(max u64) &Progessbar {
+	return progressbar_new_with_format(max, "|=|")
 }
 
 // progressbar_update Set the current status on the given progressbar.
@@ -246,13 +252,6 @@ pub fn (mut bar Progessbar) progressbar_update(value u64) {
 // progressbar_inc Increment the given progressbar. Don't increment past the initialized # of steps, though.
 pub fn (mut bar Progessbar) progressbar_inc() {
 	bar.progressbar_update(bar.value.get() + 1)
-}
-
-// progressbar_update_label Set the label of the progressbar. Note that no rendering is done. The label is simply set so that the next
-// rendering will use the new label. To immediately see the new label, call progressbar_draw.
-// Does not update display or copy the label
-pub fn (mut bar Progessbar) progressbar_update_label(label string) {
-	bar.label = label
 }
 
 // progessbar_update_max Set max value of an existing progressbar to `value` steps.
