@@ -5,6 +5,7 @@ module progressbar
 
 import math
 import strconv
+import strings
 import term
 import time
 
@@ -23,7 +24,7 @@ const eta_format = "ETA:%02dd%02dh%02dm%02ds"
 const eta_format_length = 16
 
 // The amount of width taken up by the border of the bar component.
-const whitespace_length = 3
+const whitespace_length = 4
 
 // The amount of width taken up by the border of the bar component.
 const bar_border_width = 2
@@ -107,14 +108,16 @@ fn progressbar_max(x int, y int) int {
 }
 
 @[inline]
-fn progressbar_bar_width(screen_width int, label_length int) int {
-	return progressbar_max(minimum_bar_width, screen_width - label_length - eta_format_length - whitespace_length)
-}
-
-@[inline]
 fn get_screen_width() int {
 	columns, _ := term.get_terminal_size()
 	return columns
+}
+
+@[inline]
+fn right_justified(s string, n int) string {
+	mut spaces := strings.repeat_string(" ", n)
+	spaces += s
+	return spaces
 }
 
 @[inline]
@@ -124,10 +127,17 @@ fn progressbar_draw(mut bar Progessbar) {
 
 		screen_width 	:= get_screen_width()
 		current_value	:= bar.value.get()
-		progress		:= u32(( current_value / f64(bar.max)) * 100)
-		label 			:= unsafe { strconv.v_sprintf("%02d%%", progress) }
-		label_length 	:= label.len
-		mut bar_width	:= progressbar_bar_width(screen_width, label_length)
+		progress_value	:= u32(( current_value / f64(bar.max)) * 100)
+		label 			:= unsafe { strconv.v_sprintf("%02d%%", progress_value) }
+		max_value		:= "${bar.max}"
+		current_max_tmp	:= "${current_value}/${max_value}"
+		current_max		:= if current_max_tmp.len <= 2 * max_value.len + 1 {
+							right_justified(current_max_tmp, current_max_tmp.len - max_value.len)
+						} else {
+							panic("value '${current_value}' is bigger than max!")
+						}
+		label_length 	:= label.len + (2 * current_max.len) + 1
+		mut bar_width	:= progressbar_max(minimum_bar_width, screen_width - label_length - eta_format_length - whitespace_length)
 		
 		progressbar_completed	:= current_value >= bar.max
 		bar_piece_count			:= bar_width - bar_border_width
@@ -143,7 +153,7 @@ fn progressbar_draw(mut bar Progessbar) {
 					progressbar_calc_time_components(bar.progressbar_remaining_seconds())
 				}
 
-		// Draw the label
+		// Draw the label (percent done)
 		eprint(label);
 		eprint(' ');
 		
@@ -156,7 +166,8 @@ fn progressbar_draw(mut bar Progessbar) {
 
 		// Draw the amount done
 		eprint(' ')
-
+		eprint(current_max)
+	
 		// Draw the ETA
 		eprint(' ')
 		eprint( unsafe { strconv.v_sprintf(eta_format, eta.days, eta.hours, eta.minutes, eta.seconds) } )
